@@ -11,29 +11,44 @@ def normalizevector(vector):
     """ returns a vector with frombenius norm = 1 """
     return vector * (1.0 / np.linalg.norm(vector))
 
-def detectorpixelpos(detectordefs):
-    """ calculates the pixel positions of the detector, 
-        from the detector definitions"""
 
-def raynormdir(src, detpixpos):
+def raygeometry(src, detpixpos):
     """ calculates an array of normalized (length=1) vectors representing 
         geometric ray directions, from the source and detector 
-        pixel positions"""
-    return np.norm(detpixpos - src[0:3])
+        pixel positions
+        
+        parameters: 
+            src        is source position
+            detpixpos  is a 3D array, 2 pixel dimensions,
+                       one spatial xyz positions 
+        returns:
+            unitrays   is the ray directions in unit lengths, 
+                       flattened to 1 pixel dimension, and 1 spatial dimension  
+            distances  is the distances belonging to the ray-vector
+        """
+    rayshp = detpixpos.shape
+    raycount = rayshp[0]*rayshp[1]
+    rays = detpixpos.reshape(raycount,3)[:,0:3] - src[0:3]
+    dists = np.sqrt(np.sum(rays*rays,1)).reshape(raycount,1)
+    return rays * 1.0/dists, dists
     
     
 def detectorgeometry(ddef, npdtype='float32'):
     """ calculates the geometric properties of the detector 
-        from its definitions """
+        from its definitions 
+        parameters: 
+            ddef is array detector definitions
+        
+        returns:  
+            pixelpositions    The endpoint of all the vectors
+            unitnormalvector  of the detector  """
     c0 = ddef[0:3] # corner c1-c0-c2
     c1 = ddef[3:6] # corner c0-c1-c3 or 1st axis endposition
     c2 = ddef[6:9] # corner c0-c2-c3 or 2nd axis endposition
     r1 = ddef[9]   # resolution in 1st dimension
     r2 = ddef[10]  # resolution in 2nd dimension
-    
-    
-    ## TO BE CHECKED AND TESTED!
-    dshape = (r2,r1)  # CONTROL SEQUENCE
+        
+    dshape = (r2,r1)  # CONTROL of SEQUENCE
     # unit direction vectors of detector sides
     di = (c1 - c0) * (1.0/r1)
     dj = (c2 - c0) * (1.0/r2)
