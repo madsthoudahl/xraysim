@@ -7,12 +7,18 @@ Created on Mon Aug 31 14:14:15 2015
 @author: Mads Thoudahl
 
 """
-from xraysimphysics import randomscenegen, materials
-from xraysimgeometry import *
+import numpy as np
+from xraysimphysics import randomaxisalignedscene, materials
+from xraysimgeometry import raynormdir, detectorgeometry
 
 ## constants
+pi = 3.14 #...
+
+## indexing constants
 power = 3
 energylevel = 4
+pixelpositions = 0
+normvec = 1
 
 ## simulation variables
 scene_size = 10 #is cubed!
@@ -46,8 +52,10 @@ def xraysim_benchmark(
       detectordefs = [detectordef]
       ):
 
+    print "xray simulation executing"
     # generate a random scene from scene definitions
     scenecorners, scenematerials = randomaxisalignedscene(scenedefs)
+    print "axisaligned scene generated"
 
     # generate an array of endpoints for rays (at the detector)
     detectors = []
@@ -56,20 +64,24 @@ def xraysim_benchmark(
 
     for source in sourcelist:
         # preprocess the scene physics
+
         # building a map of attenuation coefficients
         sceneattenuates =  np.zeros(scenematerials.shape)
         for material in materials:
             sceneattenuates += (scenematerials == material) * materials[material](source[energylevel])
+        print "attenuation map for source at {0} generated".format(source[0:3])
 
-        #
+        # prepare scene geometry
+        rayorigin  = source[0:3]
+
         for detector in detectors:
             # do geometry
-            rayorigin  = source[0:3]
+            rayunitdirections = raynormdir(rayorigin, detector[pixelpositions])
+        print "raydirections to detector source at {0} generated".format(detector[pixelpositions][0,0])
+            
+            
 
-            raynormdir = # calculate direction of every ray from source to detector and normalize
-
-
-    print "xraysim execution"
+    print "end of xraysim"
 
     return 0
 
