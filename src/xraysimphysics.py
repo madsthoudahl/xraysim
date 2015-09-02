@@ -17,7 +17,7 @@ materials = {
 }
 
 
-def randomscenegen( x0, y0, z0, # position lower left
+def randomaxisalignedscene( x0, y0, z0, # position lower left
                     x1, y1, z1, # position upper right
                     xs, ys, zs  # resolution
                   ):
