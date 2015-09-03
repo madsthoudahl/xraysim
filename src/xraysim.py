@@ -8,8 +8,8 @@ Created on Mon Aug 31 14:14:15 2015
 
 """
 import numpy as np
-from xraysimphysics import randomaxisalignedscene, materials
-from xraysimgeometry import raygeometry, detectorgeometry
+from xraysimphysics import randmaterialAAscene, materials
+from xraysimgeometry import coordsAAscene, raygeometry, detectorgeometry
 
 ## constants
 pi = 3.14 #...
@@ -54,7 +54,8 @@ def xraysim_benchmark(
 
     print "xray simulation executing"
     # generate a random scene from scene definitions
-    scenecorners, scenematerials = randomaxisalignedscene(scenedefs)
+    scenematerials = randmaterialAAscene(scenedefs)
+    scenegrid = coordsAAscene(scenedefs)
     print "axisaligned scene generated"
 
     # generate an array of endpoints for rays (at the detector)
@@ -79,26 +80,30 @@ def xraysim_benchmark(
 
         for detector in detectors:
             # do geometry
-            rayunitdirections, raydists = raygeometry(rayorigin, detector[pixelpositions])
-            ray_inverse = 1.0 / rayunitdirections
+            rayudirs, raydists = raygeometry(rayorigin, detector[pixelpositions])
+            ray_inverse = 1.0 / rayudirs
             print "raydirections to detector source at {0} generated".format(detector[pixelpositions][0,0])
 
-            ## TIME for the AABB algorithm...            
-            # call function implemented in xraysimgeometry?? 
-            tx1 = box.min.x - unitray.x * inv_ray.x
-            tx2 = box.max.x - unitray.x * inv_ray.x
-            
-            # necessary?? read up and think, but explain if left out
-            tmin = -inf # array shp as rays
-            tmax = +inf # array shp as rays
+            ## TIME for the AABB algorithm...
+            # call function implemented in xraysimgeometry??
+
+            infs = np.array([-np.inf, +np.inf]) # array shp as rays
+            tmin, tmax = infs[0], infs[1]
+
+            tx1 = (scenegrid[0][:-1] - rayudirs[:,0]) * ray_inverse[:,0]
+            tx2 = (scenegrid[0][1:]  - rayudirs[:,0]) * ray_inverse[:,0]
+
+#            tx1 = (box.min.x - unitray.x) * inv_ray.x
+#            tx2 = (box.max.x - unitray.x) * inv_ray.x
 
             tmin = np.min(tx1,tx2)
             tmax = np.min(tx1,tx2)
-
+            print "tmin  shape {} \n{}".format(tmin.shape,tmin)
+            print "tmax  shape {} \n{}".format(tmax.shape,tmax)
             # do the same in y and z directions
-            tmin = np.min(tmin, np.min(ty1,ty2))
-            tmax = np.max(tmax, np.max(ty1,ty2))
-            
+#            tmin = np.min(tmin, np.min(ty1,ty2))
+#            tmax = np.max(tmax, np.max(ty1,ty2))
+
     print "end of xraysim"
 
     return rayunitdirections, raydists , detectors, sceneattenuates

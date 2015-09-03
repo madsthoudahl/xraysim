@@ -16,15 +16,17 @@ materials = {
   3:["iron"    , lambda e: 1**-e+2 ]  #how does this equation really look??
 }
 
-def randomaxisalignedscene( scenedefs ):
-    """ Generates an axis aligned scene, containing
-    axis aligned boxes """
-
-    x0, y0, z0 = scenedefs[0:3] # position lower left
-    x1, y1, z1 = scenedefs[3:6] # position upper right
+def randmaterialAAscene( scenedefs ):
+    """ Generates an axis aligned scene, containing random materials
+        axis aligned boxes """
     xs, ys, zs = scenedefs[6:9] # resolution
 
-    matscene = np.random.randint(0, len(materials), xs*ys*zs).reshape((xs,ys,zs))
-    cornerpositions = [(x0, y0, z0),(x1, y1, z1)]
+    return np.random.randint(0, len(materials), xs*ys*zs).reshape((xs,ys,zs))
 
-    return (cornerpositions, matscene)
+
+def emptyAAscene( scenedefs ):
+    """ Generates an axis aligned scene, containing vacuum in all
+        axis aligned boxes """
+    xs, ys, zs = scenedefs[6:9] # resolution
+
+    return np.zeros((xs,ys,zs))
