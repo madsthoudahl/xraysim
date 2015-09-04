@@ -21,8 +21,8 @@ def coordsAAscene(scenedefs):
     xgrid = np.linspace(x0, x1, xres+1)
     ygrid = np.linspace(y0, y1, yres+1)
     zgrid = np.linspace(z0, z1, zres+1)
-#    return np.meshgrid(xgrid,ygrid,zgrid, sparse=True, indexing='xy')
-    return [xgrid,ygrid,zgrid]
+    return np.meshgrid(xgrid,ygrid,zgrid)#, sparse=True, indexing='xy')
+#    return [xgrid,ygrid,zgrid]
 
 
 def raygeometry(src, detpixpos):

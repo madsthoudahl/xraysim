@@ -21,26 +21,28 @@ pixelpositions = 0
 normvec = 1
 
 ## simulation variables
-scene_size = 10 #is cubed!
+scene_size = ss = 2 #is cubed!
+res1       = 2
+res2       = 2
 
-asource = np.array([-1,0,0, # position
+asource = np.array([-2,0,0, # position
               10,    # Power [Joules]
               80     # Energy level of xrays [keV]
              ])
 
-scenedefs = np.array([-0.5,-0.5,-0.5, # position lower left
-              0.5, 0.5, 0.5, # position upper right
+scenedefs = np.array([0, 0, 0, # position lower left
+              1, 1, 1, # position upper right
               scene_size,    # resolution1 (#pixels)
               scene_size,    # resolution2 (#pixels)
               scene_size]    # resolution3 (#pixels)
               # voxelcount = res1 * res2 * res3
             )
 
-detectordef = np.array([ 1,-1,-1, # corner 0 position
-                 1, 1, -1, # corner h1 position
-                 1, -1, 1, # corner h2 position
-                 10,    # resolution1 (#pixels)
-                 10     # resolution2 (#pixels)
+detectordef = np.array([ 2,-2,-2, # corner 0 position
+                 2, 2, -2, # corner h1 position
+                 2, -2, 2, # corner h2 position
+                 res1,    # resolution1 (#pixels)
+                 res2     # resolution2 (#pixels)
                  # rectangular surface spanned by the 3 points, and the 2 resolutions
                ])
 
@@ -62,6 +64,7 @@ def xraysim_benchmark(
     detectors = []
     for ddef in detectordefs:
         detectors.append(detectorgeometry(ddef))
+
 
     for source in sourcelist:
         # preprocess the scene physics
@@ -86,28 +89,41 @@ def xraysim_benchmark(
 
             ## TIME for the AABB algorithm...
             # call function implemented in xraysimgeometry??
+            ts = np.empty((6,scene_size,scene_size,scene_size,ray_inverse.shape[0]))
+            txs, tys, tzs = ts[0:2], ts[2:4], ts[4:6]
 
             infs = np.array([-np.inf, +np.inf]) # array shp as rays
             tmin, tmax = infs[0], infs[1]
 
-            tx1 = (scenegrid[0][:-1] - rayudirs[:,0]) * ray_inverse[:,0]
-            tx2 = (scenegrid[0][1:]  - rayudirs[:,0]) * ray_inverse[:,0]
+            
+            txs[0] = ( scenegrid[0][:-1,:-1,:-1].reshape(ss,ss,ss,1) - rayorigin[0] ) * ray_inverse[:,0]
+            txs[1] = ( scenegrid[0][1:,1:,1:].reshape(ss,ss,ss,1) - rayorigin[0] ) * ray_inverse[:,0] 
+            #txs.shape should be (scene_size, scene_size, scene_size, res1*res2)??
 
-#            tx1 = (box.min.x - unitray.x) * inv_ray.x
-#            tx2 = (box.max.x - unitray.x) * inv_ray.x
+            tys[0] = ( scenegrid[1][:-1,:-1,:-1].reshape(ss,ss,ss,1) - rayorigin[1] ) * ray_inverse[:,1]
+            tys[1] = ( scenegrid[1][1:,1:,1:].reshape(ss,ss,ss,1) - rayorigin[1] ) * ray_inverse[:,1]            
 
-            tmin = np.min(tx1,tx2)
-            tmax = np.min(tx1,tx2)
-            print "tmin  shape {} \n{}".format(tmin.shape,tmin)
-            print "tmax  shape {} \n{}".format(tmax.shape,tmax)
-            # do the same in y and z directions
-#            tmin = np.min(tmin, np.min(ty1,ty2))
-#            tmax = np.max(tmax, np.max(ty1,ty2))
+            tzs[0] = ( scenegrid[2][:-1,:-1,:-1].reshape(ss,ss,ss,1) - rayorigin[2] ) * ray_inverse[:,2]
+            tzs[1] = ( scenegrid[2][1:,1:,1:].reshape(ss,ss,ss,1) - rayorigin[2] ) * ray_inverse[:,2]            
+            
+#            #tmin seems to be ok
+#            tmin = np.max([np.min(txs, axis=0),np.min(tys, axis=0),np.min(tzs, axis=0)],axis=0)
+#            
+#            #tmax seems to be flawed somehow            
+#            tmax = np.min([np.max(txs, axis=0),np.max(tys, axis=0),np.max(tzs, axis=0)],axis=0)
+#            
+#            raydst = (tmax-tmin)*(tmax>=tmin) # wrong result! all rays should hit! 
+            #raydst.shape should be (scene_size, scene_size, scene_size, res1*res2)?
+            
+            #raydst is now to be correlated with material/attenuation grid
+
 
     print "end of xraysim"
 
-    return rayunitdirections, raydists , detectors, sceneattenuates
+    return rayudirs, raydists , detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, ts, tmin, tmax
 
 
 if __name__ == '__main__':
-    rays, raydists, detectors, sceneatt = xraysim_benchmark()
+    rayudirs, raydists, detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, ts, tmin, tmax = xraysim_benchmark()
+    
+    
