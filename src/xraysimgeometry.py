@@ -12,18 +12,27 @@ def normalizevector(vector):
     return vector * (1.0 / np.linalg.norm(vector))
 
 
-def coordsAAscene(scenedefs):
+def coordsAAscene(scenedefs, samexyzres=True):
     """ returns a meshgrid of the scene coordinates from its definitions """
     x0, y0, z0 = scenedefs[0:3] # position lower left
     x1, y1, z1 = scenedefs[3:6] # position upper right
     xres, yres, zres = scenedefs[6:9] # resolution
 
-    xgrid = np.linspace(x0, x1, xres+1)
-    ygrid = np.linspace(y0, y1, yres+1)
-    zgrid = np.linspace(z0, z1, zres+1)
-    return np.meshgrid(xgrid,ygrid,zgrid)#, sparse=True, indexing='xy')
-#    return [xgrid,ygrid,zgrid]
+    samexyzres = (xres == yres == zres)
+        
+    if not samexyzres:
+        xgrid = np.linspace(x0, x1, xres+1)
+        ygrid = np.linspace(y0, y1, yres+1)
+        zgrid = np.linspace(z0, z1, zres+1)
+        return np.meshgrid(xgrid,ygrid,zgrid)
 
+    res = xres + 1    
+    grid = np.empty((3,res,res,res))
+    grid[0] = np.repeat(np.repeat(np.linspace(x0, x1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    grid[1] = np.repeat(np.repeat(np.linspace(y0, y1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    grid[2] = np.repeat(np.repeat(np.linspace(z0, z1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    return grid    
+    
 
 def raygeometry(src, detpixpos):
     """ calculates an array of normalized (length=1) vectors representing
