@@ -129,7 +129,7 @@ def xraysim_benchmark(
                 t_in = np.max([np.min(txs, axis=0),np.min(tys, axis=0),np.min(tzs, axis=0)],axis=0)
                 t_out = np.min([np.max(txs, axis=0),np.max(tys, axis=0),np.max(tzs, axis=0)],axis=0)
 
-                ## Figure distances travelled in each voxel
+                ## Figure distances travelled inside each voxel
                 raydst = (t_out-t_in)*(t_out>=t_in) ## shape (ss,ss,ss,res1*res2)
 
 #                ## Determine if compact calculation is the same as
@@ -142,11 +142,11 @@ def xraysim_benchmark(
 
     print "end of xraysim"
 
-    return rayudirs, raydists , detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, ts, t_out, t_in, raydst
+    return rayudirs, raydists , detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, tss, t_out, t_in, raydst
 
 
 if __name__ == '__main__':
-    rayudirs, raydists, detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, ts, t_out, t_in, raydst = xraysim_benchmark()
-    txs, tys, tzs = ts[0:2], ts[2:4], ts[4:6]
+    rayudirs, raydists, detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, tss, t_out, t_in, raydst = xraysim_benchmark()
+    txs, tys, tzs = tss[0:2], tss[2:4], tss[4:6]
 
 
