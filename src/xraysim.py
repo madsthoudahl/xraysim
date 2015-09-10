@@ -8,7 +8,7 @@ Created on Mon Aug 31 14:14:15 2015
 
 """
 import numpy as np
-from xraysimphysics import randmaterialAAscene, materials
+from xraysimphysics import randmaterialAAscene, materials, attenuation_function
 from xraysimgeometry import coordsAAscene, raygeometry, \
                             detectorgeometry, runAABB, runAABBcompact
 
