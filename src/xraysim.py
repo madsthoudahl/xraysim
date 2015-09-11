@@ -8,7 +8,7 @@ Created on Mon Aug 31 14:14:15 2015
 
 """
 import numpy as np
-from xraysimphysics import randmaterialAAscene, materials, attenuation_function
+from xraysimphysics import emptyAAscene, randomAAscene, matname, attenuation, visualize
 from xraysimgeometry import coordsAAscene, raygeometry, \
                             detectorgeometry, runAABB, runAABBcompact
 
@@ -33,7 +33,7 @@ res2       = 10 # z-dir?
 asource = np.array([
               0.0, 0.0, 0.0, # position
               1,     # Power [relative to other sources]
-              80     # Energy level of xrays [keV]
+              0.080     # Energy level of xrays [MeV]
              ])
 
 scenedefs = np.array([
@@ -64,7 +64,8 @@ def xraysim_benchmark(
 
     print "xray simulation executing"
     # generate a random scene from scene definitions
-    scenematerials = randmaterialAAscene(scenedefs)
+    scenematerials = emptyAAscene(scenedefs)
+    scenematerials = randomAAscene(scenedefs)
     scenegrid = coordsAAscene(scenedefs)
     sgs = np.array(scenegrid.shape)[1:4] -1 #just xyz dims and voxel# not edge#
     print "axisaligned scene generated"
@@ -82,9 +83,8 @@ def xraysim_benchmark(
         # building a map of attenuation coefficients
         sceneattenuates =  np.zeros(scenematerials.shape)
 
-        for material_id in np.arange(len(materials)):
-            materialattenuationfun = materials[material_id][1]
-            sceneattenuates += (scenematerials == material_id) * materialattenuationfun(senergy)
+        for material_id in matname.keys():
+            sceneattenuates += (scenematerials == material_id) * attenuation.get(material_id)(senergy)
 
         print "attenuation map for source at {0} generated".format(source[0:3])
 
@@ -121,11 +121,11 @@ def xraysim_benchmark(
 
     print "end of xraysim"
 
-    return rayudirs, raydists , detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, tss, t_out, t_in, raydst
+    return rayudirs, raylengths , detectors, sceneattenuates, scenegrid, rayinverse, rayorigin, raydst
 
 
 if __name__ == '__main__':
-    rayudirs, raydists, detectors, sceneattenuates, scenegrid, ray_inverse, rayorigin, tss, t_out, t_in, raydst = xraysim_benchmark()
-    txs, tys, tzs = tss[0:2], tss[2:4], tss[4:6]
-
+    rayudirs, raylengths, detectors, sceneattenuates, scenegrid, rayinverse, rayorigin, raydst = xraysim_benchmark()
+#    txs, tys, tzs = tss[0:2], tss[2:4], tss[4:6]
+    visualize(detectors[0])
 

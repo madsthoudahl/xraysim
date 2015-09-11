@@ -7,6 +7,7 @@ Created on Mon Aug 31 14:37:10 2015
 """
 import numpy as np
 from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
 
 # Data from NIST database
 # Hardcoded energies at which attenuation coefficients were measured in [MeV]
@@ -48,42 +49,157 @@ titanium_mu_per_rhos = np.array(
         0.04801, 0.0418,  0.03512, 0.03173, 0.02982, 0.02868, 0.02759,\
         0.02727, 0.02762, 0.02844 ])
 
-attenuation_function = {
+
+matname = {
+    0  : 'vacuum',
+    1  : 'hydrogen',
+    22 : 'titanium'
+}
+
 #    """ Hashmap holding energy attenuation functions as cubic spline
 #        interpolations functions for various materials """
+attenuation = {
     0          : interp1d(hydrogen_energies, np.zeros(len(hydrogen_energies)), kind='cubic'),
-    'vacuum'   : interp1d(hydrogen_energies, np.zeros(len(hydrogen_energies)), kind='cubic'),
     1          : interp1d(hydrogen_energies, hydrogen_mu_per_rhos * hydrogen_density, kind='cubic'),
-    'hydrogen' : interp1d(hydrogen_energies, hydrogen_mu_per_rhos * hydrogen_density, kind='cubic'),
     22         : interp1d(titanium_energies, titanium_mu_per_rhos * titanium_density, kind='cubic'),
-    'titanium' : interp1d(titanium_energies, titanium_mu_per_rhos * titanium_density, kind='cubic')
 }
+
 # example interaction with energy at 220 keV = 0.22 MeV
-# attenuation_function.get('titanium')(0.22)
+# attenuation_function.get(22)(0.232)
 
-materials = {
-  0: {'name':"vacuum",
-      'Z':0,
-      'mu_at_E': lambda e: 0*e },
-
-  1: {'name':"hydrogen",
-      'Z':1,
-      'density':0.00008375, # (g/cm3)
-      'mu_at_E': interp1d(hydrogen_energies, hydrogen_mu_per_rhos, kind='cubic') } # (1/cm)
-}
-
-def randmaterialAAscene( scenedefs ):
+def randomAAscene( scenedefs ):
     """ Generates an axis aligned scene, containing random materials
         axis aligned boxes """
     xs, ys, zs = scenedefs[6:9] # resolution
+    scene = emptyAAscene(scenedefs)
+    for i in np.arange(0, np.random.randint(1,5)):
+        corner = cx, cy, cz = np.array([
+                            np.random.randint(0,xs),
+                            np.random.randint(0,ys),
+                            np.random.randint(0,zs)])
 
-    return np.random.randint(0, len(materials), xs*ys*zs).reshape((xs,ys,zs))
+        size   = np.array([ np.random.randint(0,xs-cx),
+                            np.random.randint(0,ys-cy),
+                            np.random.randint(0,zs-cz)])
+
+        mat_no = np.random.choice(attenuation.keys())
+
+        if not addAAcube(scenedefs, scene, corner, size, mat_no, ref='relative'):
+            print "randmaterialAAscene: adding a aa-cube failed"
+    return scene
+
 
 
 def emptyAAscene( scenedefs ):
     """ Generates an axis aligned scene, containing vacuum in all
-        axis aligned boxes """
-    xs, ys, zs = scenedefs[6:9] # resolution
+        axis aligned boxes
+        Model: all boxes are *fully* occupied by exactly one (1)
+               material, vacuum (material=0) represents zero attenuation"""
+    shp = xs, ys, zs = scenedefs[6:9] # resolution
+    return np.zeros(shp)
 
-    return np.zeros((xs,ys,zs))
 
+
+def addAAcube(scenedefs, materialscene, mincorner, size, material, ref='relative'):
+    """ adds a cubic shape to scene, replacing any material in same location
+
+        scenedefs:     scene metadata p0, p1, res
+        materialscene: initiated (xsize, y_size, z_size) scene in resolution
+        mincorner:     reference dependant starting point
+        size:          reference dependant side length (3,) np array
+        material:      Integer - material number
+        ref:           input arguments refer to the following
+                       'relative'    resolution relative references
+                       'absolute'      real world coordinate references
+
+       returns:        Bool - success
+                       changes materialscene as sideeffect
+       """
+    if ref == 'relative':
+        x0,y0,z0 = mincorner
+        x1,y1,z1 = maxcorner = mincorner + size
+        sshp = scenedefs[6:9]
+        if np.any(sshp < maxcorner):
+            print "WARNING, PART OF ADDED CUBE OUTSIDE SCENE"
+            # reduce size to match scene representation
+            difs = maxcorner - sshp
+            size -= (difs>0) * difs
+        materialscene[x0:x1,y0:y1,z0:z1] = np.ones(size) * material
+        return True
+
+    if ref != 'relative':
+        return False
+
+    return False
+
+
+
+### old visualization function to be modified
+def visualize(detector):
+    """ Visualize a detector output """
+    _pixelpositions, _pixelareavector, _dshape, result = detector
+    title = "Detector image"
+    plt.figure()
+    plt.title(title)
+    plt.imshow(result, cmap='gray', origin='lower')
+    plt.colorbar(shrink=.92)
+    plt.xticks([])
+    plt.yticks([])
+
+
+
+def visualize2(scene, outputdir, scenefile, outputarg, conf):
+    """ Visualizes a simulation """
+    fig  = 0
+    afig = 100
+    energies = [str(source.energy) for source in scene.sources]
+    srcstr   = [str(source) for source in scene.sources]
+    for det in scene.detectors:
+        fig  += 1
+        title = "Detector image: {}\n{}\n{}"
+        path =  outputdir + scenefile + '/' + outputarg # savepath
+        res = '@R' + str(det.a_res) +'x'+ str(det.b_res) # resolution
+        nrg = '-E' + '-E'.join(energies)
+        mat = conf.MATTER if conf.MATTER else ''
+        fmt = "." + conf.OUTPUTFORMAT                   # format
+        fname =  path + res + nrg + mat + fmt
+
+        plt.figure(fig)
+        plt.title(title .format(scenefile, str(det), '\n'.join(srcstr) ) )
+        plt.imshow(det.result, cmap='gray', origin='lower')
+        plt.colorbar(shrink=.92)
+        plt.xticks([])
+        plt.yticks([])
+        plt.show()
+
+        if conf.ATTENUATION:
+            afig  += 1
+            atitle = "X-ray attenuation image: {}\n{}\n{}"
+            path = outputdir + scenefile + '/' + outputarg
+            res = '@R' + str(det.a_res) +'x'+ str(det.b_res)
+            nrg = "-E" + '-E'.join(energies)
+            mat = conf.MATTER if conf.MATTER else ''
+            fmt = "-A." + conf.OUTPUTFORMAT
+            afname = path + res + nrg + mat + fmt
+            plt.figure(afig)
+            plt.title(atitle .format(scenefile, str(det), '\n'.join(srcstr) ) )
+            plt.imshow(det.attenuation, cmap='gray', origin='lower')
+            plt.colorbar(shrink=.92)
+            plt.xticks([])
+            plt.yticks([])
+
+        try: # Store it on disk
+            plt.figure(fig)
+            plt.savefig( fname, format=conf.OUTPUTFORMAT )
+            if conf.ATTENUATION:
+                plt.figure(afig)
+                plt.savefig( afname, format=conf.OUTPUTFORMAT )
+        except IOError:
+            try:
+                os.makedirs( outputdir + scenefile )
+                plt.savefig( fname, format=conf.OUTPUTFORMAT )
+            except OSError:
+                if not os.path.isdir(outputdir + scenefile):
+                    raise
+        if conf.VISUALIZE:
+            plt.show()

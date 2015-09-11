@@ -7,9 +7,6 @@ Created on Mon Aug 31 14:38:12 2015
 """
 import numpy as np
 
-#def normalizevector(vector):
-#    """ returns a vector with frombenius norm = 1 """
-#    return vector * (1.0 / np.linalg.norm(vector))
 
 
 def coordsAAscene(scenedefs, samexyzres=True):
