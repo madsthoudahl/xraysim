@@ -8,6 +8,14 @@ Created on Mon Aug 31 14:38:12 2015
 import numpy as np
 
 
+class Shape: ## for enumeration purposes
+    cube   = 0
+    sphere = 1
+
+class Reference:
+    absolute = 0
+    relative = 1    
+
 
 def coordsAAscene(scenedefs, samexyzres=True):
     """ returns a meshgrid of the scene coordinates from its definitions """
@@ -25,9 +33,12 @@ def coordsAAscene(scenedefs, samexyzres=True):
 
     res = xres + 1
     grid = np.empty((3,res,res,res))
-    grid[0] = np.repeat(np.repeat(np.linspace(x0, x1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
-    grid[1] = np.repeat(np.repeat(np.linspace(y0, y1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
-    grid[2] = np.repeat(np.repeat(np.linspace(z0, z1, res).reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    grid[0] = np.repeat(np.repeat(np.linspace(x0, x1, res)\
+            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    grid[1] = np.repeat(np.repeat(np.linspace(y0, y1, res)\
+            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
+    grid[2] = np.repeat(np.repeat(np.linspace(z0, z1, res)\
+            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
     return grid
 
 
@@ -125,8 +136,10 @@ def runAABBcompact(scenegrid, rayudirs, rayorigin, rayinverse):
     txs, tys, tzs = tss[0:2], tss[2:4], tss[4:6]
 #    print "aabbcompactsg = {}, rayorigin: {}".format(scenegrid.shape, rayorigin.shape)
     ## Ray Geometry
-    tss[::2] = ( scenegrid[:,:-1,:-1,:-1] - rayorigin.reshape(3,1,1,1) ).reshape(3,ss,ss,ss,1) * rayinverse.T.reshape(3,1,1,1,raycount)
-    tss[1::2] = ( scenegrid[:,1:,1:,1:] - rayorigin.reshape(3,1,1,1) ).reshape(3,ss,ss,ss,1) * rayinverse[:,:].T.reshape(3,1,1,1,raycount)
+    tss[::2] = ( scenegrid[:,:-1,:-1,:-1] - rayorigin.reshape(3,1,1,1) )\
+            .reshape(3,ss,ss,ss,1) * rayinverse.T.reshape(3,1,1,1,raycount)
+    tss[1::2] = ( scenegrid[:,1:,1:,1:] - rayorigin.reshape(3,1,1,1) )\
+            .reshape(3,ss,ss,ss,1) * rayinverse[:,:].T.reshape(3,1,1,1,raycount)
 
     ## Figure incoming and outgoing t_values (t is travelled distance) at each voxel
     t_in = np.max([np.min(txs, axis=0),np.min(tys, axis=0),np.min(tzs, axis=0)],axis=0)
@@ -135,3 +148,6 @@ def runAABBcompact(scenegrid, rayudirs, rayorigin, rayinverse):
     ## Figure distances travelled in each voxel
     voxelraydistances = (t_out-t_in)*(t_out>=t_in)
     return voxelraydistances
+
+
+

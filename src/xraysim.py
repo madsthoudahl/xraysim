@@ -8,73 +8,67 @@ Created on Mon Aug 31 14:14:15 2015
 
 """
 import numpy as np
-from xraysimphysics import emptyAAscene, randomAAscene, matname, attenuation, visualize
+from xraysimphysics import emptyAAscene, addobjtoscene, randomAAscene, matname, attenuation
 from xraysimgeometry import coordsAAscene, raygeometry, \
                             detectorgeometry, runAABB, runAABBcompact
 
-## constants
-eps = 1e-6 #fault tolerance epsilon
-invsqr = 1.0 / 4 * np.pi
 
-## indexing constants
-power = 3
-energylevel = 4
-pixelpositions = 0
-normvec = 1
-pixelarea = 2
-result = 3
+class Const:
+    EPS = 1e-5
+    invsqr = 1.0 / (np.pi * 4)
 
-## simulation variables
-scene_size = ss = 10 #is cubed!
-res1       = 10 # y-dir?
-res2       = 10 # z-dir?
-#(60**3)*20*20 = memory error :-) @ 8GB
-
-asource = np.array([
-              0.0, 0.0, 0.0, # position
-              1,     # Power [relative to other sources]
-              0.080     # Energy level of xrays [MeV]
-             ])
-
-scenedefs = np.array([
-              2.0, 0.0, 0.0, # position lower left
-              3.0, 1.0, 1.0, # position upper right
-              scene_size,    # resolution1 (#pixels)
-              scene_size,    # resolution2 (#pixels)
-              scene_size]    # resolution3 (#pixels)
-              # voxelcount = res1 * res2 * res3
-            )
-
-detectordef = np.array([
-                 4, 0, 0, # corner 0 position
-                 4, 1.4, 0, # corner h1 position
-                 4, 0, 1.4, # corner h2 position
-                 res1,    # resolution1 (#pixels)
-                 res2     # resolution2 (#pixels)
-                 # rectangular surface spanned by the 3 points, and the 2 resolutions
-               ])
+def buildscene(
+    scenedefs,
+    objlist
+    ):
+    # generate a random scene from scene definitions
+    scenegrid = coordsAAscene(scenedefs)
+    scenematerials = emptyAAscene(scenedefs)
+    print "axisaligned scene generated"
+    for obj in objlist:
+        if not addobjtoscene(scenegrid, scenematerials, obj):
+            print "object NOT included"
+    print "axisaligned scene inhabited with objects"
+    return scenegrid, scenematerials
 
 
 
-def xraysim_benchmark(
-      sourcelist = [asource],
-      scenedefinition = scenedefs,
-      detectordefs = [detectordef]
-      ):
+def xraysim(sourcelist,
+            detectordeflist,
+            scenegrid,
+            scenematerials
+              ):
+    """ performs the calculations figuring out what is detected 
+        INPUT:
+        sourcelist: list of np.array([
+                        px,py,pz,       position
+                        relative_power, relative to other sources simulated
+                        energy])        MeV
+
+        detectorlist: list of np.array([
+                        px0,py0,pz0,    position lower left corner
+                        px1,py1,pz1,    position upper right corner
+                        res1,res2 ])    resolution of detector
+
+        scenegrid:      a numpy array 'meshgrid' shaped (xs+1,ys+1,zs+1) 
+                        containing absolute coordinates of grid at 'intersections'
+                        as returned by buildscene
+
+        scenematerials: a numpy array shaped (xs,ys,zs) 
+                        containing information of which MATERIAL inhibits this voxel
+                        ## for a better model this should also contain 
+                        ## information of how much of the voxel is filled..
+    """
+    ## indexing constants
+    power, pixelpositions, result =  [3,0,3]
 
     print "xray simulation executing"
-    # generate a random scene from scene definitions
-    scenematerials = emptyAAscene(scenedefs)
-    scenematerials = randomAAscene(scenedefs)
-    scenegrid = coordsAAscene(scenedefs)
     sgs = np.array(scenegrid.shape)[1:4] -1 #just xyz dims and voxel# not edge#
-    print "axisaligned scene generated"
 
     # generate an array of endpoints for rays (at the detector)
     detectors = []
-    for ddef in detectordefs:
+    for ddef in detectordeflist:
         detectors.append(detectorgeometry(ddef))
-
 
     for source in sourcelist:
         _sox, _soy, _soz, spower, senergy = source
@@ -84,7 +78,8 @@ def xraysim_benchmark(
         sceneattenuates =  np.zeros(scenematerials.shape)
 
         for material_id in matname.keys():
-            sceneattenuates += (scenematerials == material_id) * attenuation.get(material_id)(senergy)
+            sceneattenuates += (scenematerials == material_id) \
+                    * attenuation.get(material_id)(senergy)
 
         print "attenuation map for source at {0} generated".format(source[0:3])
 
@@ -94,7 +89,8 @@ def xraysim_benchmark(
         for pixelpositions, pixelareavector, dshape, result in detectors:
             # do geometry
             rayudirs, raylengths, rayinverse = raygeometry(rayorigin, pixelpositions)
-            print "raydirections to detector source at {0} generated".format( pixelpositions[0,0] )
+            print "raydirections to detector source at {0} generated"\
+                    .format( pixelpositions[0,0] )
 
             if sgs[0]==sgs[1]==sgs[2]: ##compact is safe
                 #?COMPACT? AABB ALGORITHM
@@ -107,10 +103,11 @@ def xraysim_benchmark(
 #            print "shapes:"
 #            print "pixelareavector:\t{}".format(pixelareavector)
 
-            dtectattenuates = np.sum((sceneattenuates.reshape(sgs[0],sgs[1],sgs[2],1)* raydst).reshape(sgs[0]*sgs[1]*sgs[2],dshape[0],dshape[1]), axis = 0) #shape?
+            dtectattenuates = np.sum((sceneattenuates.reshape(sgs[0],sgs[1],sgs[2],1)\
+                    * raydst).reshape(sgs[0]*sgs[1]*sgs[2],dshape[0],dshape[1]), axis = 0) #shape?
 #            print "dtectattenuates:\t{}".format(dtectattenuates.shape)
 
-            pixelintensity = (source[power] * invsqr / raylengths).reshape(dshape) #shape?
+            pixelintensity = (source[power] * Const.invsqr / raylengths).reshape(dshape) #shape?
 #            print "pixelintensity:\t{}".format(pixelintensity.shape)
 
             area = np.dot( rayudirs, pixelareavector.reshape(3,1) ).reshape(dshape) #correct? #shapes
@@ -121,11 +118,5 @@ def xraysim_benchmark(
 
     print "end of xraysim"
 
-    return rayudirs, raylengths , detectors, sceneattenuates, scenegrid, rayinverse, rayorigin, raydst
-
-
-if __name__ == '__main__':
-    rayudirs, raylengths, detectors, sceneattenuates, scenegrid, rayinverse, rayorigin, raydst = xraysim_benchmark()
-#    txs, tys, tzs = tss[0:2], tss[2:4], tss[4:6]
-    visualize(detectors[0])
+    return (rayudirs, raylengths , detectors, sceneattenuates, scenegrid, rayinverse, rayorigin, raydst, scenematerials)
 
