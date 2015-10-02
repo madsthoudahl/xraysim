@@ -5,41 +5,35 @@ Created on Mon Aug 31 14:38:12 2015
 @author: Mads Thoudahl
 
 """
+#import bohrium as np
 import numpy as np
+import numpy
 
 
-class Shape: ## for enumeration purposes
+## for enumeration purposes
+class Shape:
     cube   = 0
     sphere = 1
 
 class Reference:
     absolute = 0
-    relative = 1    
+    relative = 1
 
 
-def coordsAAscene(scenedefs, samexyzres=True):
+def coordsAAscene(scenedefs):
     """ returns a meshgrid of the scene coordinates from its definitions """
     x0, y0, z0 = scenedefs[0:3] # position lower left
     x1, y1, z1 = scenedefs[3:6] # position upper right
     xres, yres, zres = scenedefs[6:9] # resolution
 
-    samexyzres = (xres == yres == zres)
-
-    if not samexyzres:
-        xgrid = np.linspace(x0, x1, xres+1)
-        ygrid = np.linspace(y0, y1, yres+1)
-        zgrid = np.linspace(z0, z1, zres+1)
-        return np.meshgrid(xgrid,ygrid,zgrid)
-
-    res = xres + 1
-    grid = np.empty((3,res,res,res))
-    grid[0] = np.repeat(np.repeat(np.linspace(x0, x1, res)\
-            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
-    grid[1] = np.repeat(np.repeat(np.linspace(y0, y1, res)\
-            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
-    grid[2] = np.repeat(np.repeat(np.linspace(z0, z1, res)\
-            .reshape(res,1),res,axis=1).reshape(res,res,1),res,axis=2)
-    return grid
+    xgrid = np.array(np.linspace(x0, x1, (xres+1)))
+    ygrid = np.array(np.linspace(y0, y1, (yres+1)))
+    zgrid = np.array(np.linspace(z0, z1, (zres+1)))
+    print len(xgrid), len(ygrid), len(zgrid)
+    print xgrid
+    print ygrid
+    print zgrid
+    return np.meshgrid(xgrid,ygrid,zgrid)
 
 
 def raygeometry(src, detpixpos):
@@ -59,8 +53,13 @@ def raygeometry(src, detpixpos):
         """
     rayshp         = detpixpos.shape
     raycount       = rayshp[0]*rayshp[1]
-    rays           = detpixpos.reshape(raycount,3)[:,0:3] - src[0:3]
-    raydistances   = np.sqrt(np.sum(rays*rays,1)).reshape(raycount,1)
+    origin         = np.array([src[0],src[1],src[2]])
+    rays           = detpixpos.reshape(raycount,3)[:,0:3] - origin
+    print "rays.shape {}".format(rays.shape)
+    print type(rays)
+    np.add.reduce(np.array(rays,copy=True))
+    raydistances   = np.sqrt( np.add.reduce(rays*rays, axis=1) ).reshape(raycount,1)
+
     unitrays       = rays*1.0/raydistances
     rayinverses    = 1.0 / unitrays
     return  unitrays, raydistances, rayinverses
@@ -75,9 +74,9 @@ def detectorgeometry(ddef, npdtype='float32'):
         returns:
             pixelpositions    The endpoint of all the vectors
             unitnormalvector  of the detector  """
-    c0 = ddef[0:3] # corner c1-c0-c2
-    c1 = ddef[3:6] # corner c0-c1-c3 or 1st axis endposition
-    c2 = ddef[6:9] # corner c0-c2-c3 or 2nd axis endposition
+    c0 = np.array([ddef[0],ddef[1],ddef[2]]) # corner c1-c0-c2
+    c1 = np.array([ddef[3],ddef[4],ddef[5]]) # corner c0-c1-c3 or 1st axis endposition
+    c2 = np.array([ddef[6],ddef[7],ddef[8]]) # corner c0-c2-c3 or 2nd axis endposition
     r1 = ddef[9]   # resolution in 1st dimension
     r2 = ddef[10]  # resolution in 2nd dimension
 
@@ -89,14 +88,12 @@ def detectorgeometry(ddef, npdtype='float32'):
     def pcfunx(j,i):  return pcfun(j,i,0)
     def pcfuny(j,i):  return pcfun(j,i,1)
     def pcfunz(j,i):  return pcfun(j,i,2)
-    pxs  = np.fromfunction(pcfunx, shape=dshape, dtype=npdtype )
-    pys  = np.fromfunction(pcfuny, shape=dshape, dtype=npdtype )
-    pzs  = np.fromfunction(pcfunz, shape=dshape, dtype=npdtype )
-    pixelpositions = np.dstack((pxs,pys,pzs)) # shape = (r2,r1,3)
+    pxs  = numpy.fromfunction(pcfunx, shape=dshape, dtype=npdtype )
+    pys  = numpy.fromfunction(pcfuny, shape=dshape, dtype=npdtype )
+    pzs  = numpy.fromfunction(pcfunz, shape=dshape, dtype=npdtype )
+    pixelpositions = np.array(numpy.dstack((pxs,pys,pzs))) # shape = (r2,r1,3)
 
-#    normalvector = np.cross(di,dj)
-#    unitnormalvector = normalizevector(normalvector)
-    pixelareavector = np.cross(di, dj)
+    pixelareavector = np.array(numpy.cross(di, dj))
     result = np.zeros(dshape)
 
     return  pixelpositions, pixelareavector, dshape, result
@@ -104,10 +101,10 @@ def detectorgeometry(ddef, npdtype='float32'):
 
 def runAABB(scenegrid, rayudirs, rayorigin, rayinverse):
     """ Returns the distances that every ray travels in every voxel """
-    ssx, ssy, ssz = np.array(scenegrid.shape[1:4]) - 1
+    ssx, ssy, ssz = (len(scenegrid[0])-1, len(scenegrid[1])-1, len(scenegrid[2])-1)
+
     ts = np.empty((6, ssx, ssy, ssz, rayinverse.shape[0]))
     txs, tys, tzs = ts[0:2], ts[2:4], ts[4:6]
-
 
     txs[0] = ( scenegrid[0][:-1,:-1,:-1].reshape(ssx, ssy, ssz, 1) - rayorigin[0] ) * rayinverse[:,0]
     txs[1] = ( scenegrid[0][1:,1:,1:].reshape(ssx, ssy, ssz, 1) - rayorigin[0] ) * rayinverse[:,0]
@@ -118,7 +115,8 @@ def runAABB(scenegrid, rayudirs, rayorigin, rayinverse):
     tzs[0] = ( scenegrid[2][:-1,:-1,:-1].reshape(ssx, ssy, ssz, 1) - rayorigin[2] ) * rayinverse[:,2]
     tzs[1] = ( scenegrid[2][1:,1:,1:].reshape(ssx, ssy, ssz, 1) - rayorigin[2] ) * rayinverse[:,2]
 
-
+    print "RUNTIME WARNING in t_in = ... when using bohrium"
+ #   t_in = numpy.max(numpy.array([numpy.min(numpy.array(txs), axis=0),numpy.min(numpy.array(tys), axis=0),numpy.min(numpy.array(tzs), axis=0)]),axis=0)
     t_in = np.max(np.array([np.min(txs, axis=0),np.min(tys, axis=0),np.min(tzs, axis=0)]),axis=0)
     t_out = np.min(np.array([np.max(txs, axis=0),np.max(tys, axis=0),np.max(tzs, axis=0)]),axis=0)
 
@@ -138,6 +136,7 @@ def runAABBcompact(scenegrid, rayudirs, rayorigin, rayinverse):
     ## Ray Geometry
     tss[::2] = ( scenegrid[:,:-1,:-1,:-1] - rayorigin.reshape(3,1,1,1) )\
             .reshape(3,ss,ss,ss,1) * rayinverse.T.reshape(3,1,1,1,raycount)
+
     tss[1::2] = ( scenegrid[:,1:,1:,1:] - rayorigin.reshape(3,1,1,1) )\
             .reshape(3,ss,ss,ss,1) * rayinverse[:,:].T.reshape(3,1,1,1,raycount)
 

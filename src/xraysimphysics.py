@@ -5,16 +5,19 @@ Created on Mon Aug 31 14:37:10 2015
 @author: Mads Thoudahl
 
 """
+#import bohrium as np
 import numpy as np
+import numpy
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from xraysimgeometry import Shape, Reference
 
+# for enumeration purposes
 class Material:
     vacuum   = 0
     hydrogen = 1
     titanium = 22
-    
+
 
 matname = {
     Material.vacuum   : 'vacuum',
@@ -30,7 +33,7 @@ matname = {
 # Attenuation values were measured in   mu / rho [cm2/g]
 # thus Attenuation coefficients returned by spline functions has unit  [1/cm]
 
-hydrogen_energies = np.array(
+hydrogen_energies = numpy.array(
     [0.001,   0.0015,  0.002,   0.003,   0.004,   0.005,   0.006,  \
      0.008,   0.01,    0.015,   0.02,    0.03,    0.04,    0.05,   \
      0.06,    0.08,    0.1,     0.15,    0.2,     0.3,     0.4,    \
@@ -38,7 +41,7 @@ hydrogen_energies = np.array(
      3.0,     4.0,     5.0,     6.0,     8.0,    10.0,    15.0,    \
     20.0    ])
 hydrogen_density = 0.00008375
-hydrogen_mu_per_rhos = np.array(
+hydrogen_mu_per_rhos = numpy.array(
     [7.217,   2.148,   1.059,   0.5612,  0.4546,  0.4193,  0.4042, \
      0.3914,  0.3854,  0.3764,  0.3695,  0.357,   0.3458,  0.3355, \
      0.326,   0.3091,  0.2944,  0.2651,  0.2429,  0.2112,  0.1893, \
@@ -46,7 +49,7 @@ hydrogen_mu_per_rhos = np.array(
      0.06921, 0.05806, 0.05049, 0.04498, 0.03746, 0.03254, 0.02539,\
      0.02153 ])
 
-titanium_energies = np.array(
+titanium_energies = numpy.array(
     [0.001,    0.0015,  0.002,  0.003,  0.0047,  0.0049664, 0.0049664,\
      0.005,    0.006,   0.008,  0.01,   0.015,   0.02,      0.03,     \
      0.04,     0.05,    0.06,   0.08,   0.1,     0.15,      0.2,      \
@@ -54,7 +57,7 @@ titanium_energies = np.array(
      1.5,      2,       3,      4,      5,       6,         8,        \
      10,      15,      20   ])
 titanium_density = 4540
-titanium_mu_per_rhos = np.array(
+titanium_mu_per_rhos = numpy.array(
     [5869,    2096,     986,     332.3,   151.7,    83.8,   687.8,    \
       683.8,   432.3,   202.3,   110.7,    35.87,   15.85,    4.972,  \
         2.214,   1.213,   0.7661,  0.4052,  0.2721,  0.1649,  0.1314, \
@@ -67,7 +70,7 @@ titanium_mu_per_rhos = np.array(
 #        interpolations functions for various materials """
 attenuation = {
     Material.vacuum   : interp1d(hydrogen_energies, \
-            np.zeros(len(hydrogen_energies)), kind='cubic'),
+            numpy.zeros(len(hydrogen_energies)), kind='cubic'),
     Material.hydrogen : interp1d(hydrogen_energies, \
             hydrogen_mu_per_rhos * hydrogen_density, kind='cubic'),
     Material.titanium : interp1d(titanium_energies, \
@@ -75,7 +78,7 @@ attenuation = {
 }
 
 # example interaction with energy at 220 keV = 0.22 MeV
-# attenuation_function.get(22)(0.232)
+# attenuation.get(Material.titanium)(0.232)
 
 
 
@@ -95,7 +98,7 @@ def randomAAscene( scenedefs ):
                             np.random.randint(0,zs-cz)])
 
         material = np.random.choice(attenuation.keys())
-        
+
         cubedescribers = (corner, size)
 
         if not addAAcube(scenedefs, scene, cubedescribers, material, ref=Reference.relative):
@@ -123,7 +126,7 @@ def addobjtoscene(scene, matscene, obj):
     else:
         print "Cube shaped objects are the only ones supported at this time"
         print "Object dropped"
-    
+
 
 
 def addAAcube(scene, matscene, describers, material, ref=Reference.relative):
@@ -143,17 +146,15 @@ def addAAcube(scene, matscene, describers, material, ref=Reference.relative):
        returns:        Bool - success
                        changes materialscene as sideeffect
        """
-    mincorner, size = describers
+    mincorner, maxcorner = describers
     if ref == Reference.relative:
         x0,y0,z0 = mincorner
-        x1,y1,z1 = maxcorner = mincorner + size
-        sshp = matscene.shape
-        if np.any(sshp < maxcorner):
-            print "WARNING, PART OF ADDED CUBE OUTSIDE SCENE"
-            # reduce size to match scene representation
-            difs = maxcorner - sshp
-            size -= (difs>0) * difs
-        matscene[x0:x1,y0:y1,z0:z1] = np.ones(size) * material
+        x1,y1,z1 = maxcorner
+        sshp = np.array(matscene.shape)
+        if sshp[0] < x1: x1 = sshp[0]
+        if sshp[1] < y1: y1 = sshp[1]
+        if sshp[2] < z1: z1 = sshp[2]
+        matscene[x0:x1,y0:y1,z0:z1] = material
         return True
 
     if ref == Reference.absolute:
@@ -174,7 +175,7 @@ def visualize(detector):
     plt.colorbar(shrink=.92)
     plt.xticks([])
     plt.yticks([])
-
+    plt.show()
 
 
 def visualize2(scene, outputdir, scenefile, outputarg, conf):
